@@ -1,6 +1,6 @@
 # Interpreting `cid-cmd` output
 
-How to decide whether a `cid-cmd` run succeeded or failed, as of cid-cmd 4.4.19. Apply these
+How to decide whether a `cid-cmd` run succeeded or failed (last checked on cid-cmd 4.4.21). Apply these
 rules to every subcommand (`status`, `deploy`, `update`, `delete`, and the others in
 `references/cid-cmd-subcommands.md`).
 
@@ -34,7 +34,7 @@ if **either**:
 
 Otherwise treat it as **success**.
 
-`WARNING -` lines are not failures. As of cid-cmd 4.4.19 (added in 4.4.18), an unattended
+`WARNING -` lines are not failures. Since cid-cmd 4.4.18, an unattended
 `-y` run without a terminal logs `WARNING - Parameter <X> is not set. Using default: <value>`
 when it fills a free-text prompt from its default instead of aborting. Report which defaults
 were used, because the user did not choose them.
@@ -91,7 +91,7 @@ parameter, for example `athena-database`, `athena-workgroup`, `athena-result-buc
 `quicksight-datasource-id`, `cur-table-name-and-db`, or `timezone`, when run unattended
 without that parameter. Those are **real failures**: cid-cmd needed a value, had no TTY to
 prompt, and aborted before completing the operation (there is no completed result block above
-them). Verified live. They are all selection prompts, which still abort as of cid-cmd 4.4.19;
+them). Verified live. They are all selection prompts, which still abort (checked on cid-cmd 4.4.21);
 the 4.4.18 change that fills free-text prompts from their defaults does not cover them. Supply the missing parameter (see `references/deploy-parameters.md`);
 do not treat it as benign.
 

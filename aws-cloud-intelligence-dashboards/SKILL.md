@@ -20,22 +20,25 @@ Intelligence, KPI, Trusted Advisor (TAO), CORA, Graviton, Health Events, FOCUS, 
 that turn Cost and Usage data into cost-optimization insight. This skill deploys and manages
 them in the user's own AWS account with two tools:
 
-- the **`cid-cmd`** CLI ([PyPI](https://pypi.org/project/cid-cmd/4.4.19/),
-  `pip install cid-cmd==4.4.19`) for the dashboard lifecycle, and
+- the **`cid-cmd`** CLI ([PyPI](https://pypi.org/project/cid-cmd/), latest release) for the
+  dashboard lifecycle, and
 - **CloudFormation** (the CID templates) for the underlying infrastructure: CUR 2.0 / FOCUS /
   Cost Optimization Hub data exports and the advanced Data Collection pipeline.
 
 You act with the user's own AWS credentials. Product documentation:
 [Cloud Intelligence Dashboards on AWS](https://docs.aws.amazon.com/guidance/latest/cloud-intelligence-dashboards/).
 
-**Works best with** the [AWS MCP server](https://docs.aws.amazon.com/aws-mcp/), which is recommended for sandboxed execution and audit logging of the AWS CLI calls this skill makes (stack status, QuickSight and Glue lookups, CloudFormation deploys). All guidance also works with standard AWS CLI access. The `cid-cmd` steps need a local shell with Python 3.10+.
+**Works best with** the [AWS MCP server](https://docs.aws.amazon.com/aws-mcp/), which is recommended for sandboxed execution and audit logging of the AWS CLI calls this skill makes (stack status, QuickSight and Glue lookups, CloudFormation deploys). All guidance also works with standard AWS CLI access. The `cid-cmd` steps need a local shell with Python 3.11+.
 
 ## Routing
 
 | User need | Action |
 |-----------|--------|
+| What a dashboard shows: its sheets and visuals, whether it covers a service or metric, which dataset or view feeds a visual | Read [dashboard-content.md](references/dashboard-content.md) |
+| Which dashboards are available to deploy that the user doesn't have yet | Read the last section of [dashboard-catalog.md](references/dashboard-catalog.md#which-dashboards-can-i-deploy-that-i-dont-have-yet) |
 | Pick a dashboard or resolve a friendly name ("CUDOS", "trusted advisor") to an id | Read [dashboard-catalog.md](references/dashboard-catalog.md) |
 | Deploy or update a dashboard unattended, or fix a `Please set parameter` abort | Read [deploy-parameters.md](references/deploy-parameters.md) |
+| Update a dashboard, or check for updates: decide whether the new version needs `--recursive`, `--force`, a newer cid-cmd, or a newer Data Collection | Read [update-changelog-check.md](references/update-changelog-check.md) |
 | Decide whether a `cid-cmd` run passed or failed | Read [output-interpretation.md](references/output-interpretation.md) |
 | Set up CUR 2.0 / FOCUS / COH data exports, Data Collection, or the CFN dashboard stack | Read [cloudformation-templates.md](references/cloudformation-templates.md) |
 | Choose Data Collection modules for an advanced dashboard | Read [data-collection-modules.md](references/data-collection-modules.md) |
@@ -46,11 +49,13 @@ You act with the user's own AWS credentials. Product documentation:
 
 | File | Content |
 |------|---------|
-| [dashboard-catalog.md](references/dashboard-catalog.md) | 32 canonical dashboard ids, 45 friendly-name aliases, resolution rule, which dashboards need Data Collection |
+| [dashboard-catalog.md](references/dashboard-catalog.md) | Dashboard ids and friendly-name aliases (snapshot), resolution rule, which dashboards need Data Collection, live list of dashboards available but not deployed |
+| [dashboard-content.md](references/dashboard-content.md) | Per-dashboard docs page and upstream definition YAML, read-only outline of sheets, visuals, and datasets |
 | [deploy-parameters.md](references/deploy-parameters.md) | `deploy` / `update` options, the unattended parameter chain and how to discover each value, deploy-time issues (stale CUR view, `--timezone`) |
+| [update-changelog-check.md](references/update-changelog-check.md) | Pre-update changelog check: how to find the changelog, signals for `--recursive` / `--force` / minimum cid-cmd and Data Collection versions, cid-cmd's major-version auto-recursive behavior |
 | [output-interpretation.md](references/output-interpretation.md) | Failure-log rule, the `status` picker-traceback exception, real vs. recoverable `ERROR -` lines |
-| [cloudformation-templates.md](references/cloudformation-templates.md) | Pinned template versions and URLs, per-stack parameters, multi-account Data Exports ordering, region constraints |
-| [data-collection-modules.md](references/data-collection-modules.md) | 24 Data Collection modules mapped to `IncludeXModule` parameters, dashboards, and cross-account roles |
+| [cloudformation-templates.md](references/cloudformation-templates.md) | Latest public template URLs and the pre-deploy template check, per-stack parameters, multi-account Data Exports ordering, region constraints |
+| [data-collection-modules.md](references/data-collection-modules.md) | 25 Data Collection modules mapped to `IncludeXModule` parameters, dashboards, and cross-account roles |
 | [cid-cmd-subcommands.md](references/cid-cmd-subcommands.md) | The other `cid-cmd` subcommands with real flags and safety framing |
 
 ## Guardrail — where this skill's own files live (MCP vs local install)
@@ -75,10 +80,21 @@ directory. Never fetch or write customer data through `retrieve_skill`.
 
 ## Prerequisites
 
-- **Python 3.10+** and `pip install cid-cmd==4.4.19` (preferably in a virtual environment).
-  The references and limitations in this skill describe cid-cmd 4.4.19.
-  If `cid-cmd` is not installed, install `cid-cmd==4.4.19` in a scratch virtual environment before continuing. This is a local tooling step that makes no change to the user's AWS account, so it is compatible with read-only requests such as "just check, don't change anything". Mention in your answer that you installed it.
-  If a newer cid-cmd is already installed, use it rather than downgrading; this guidance was verified on 4.4.19.
+- **Python 3.11+** and the **latest `cid-cmd` from PyPI**. cid-cmd releases are reviewed and
+  tested, and fixes the skill relies on (for example `--on-drift override` without a
+  terminal, 4.4.20) ship only in new releases. So always use the latest:
+  - If `cid-cmd` isn't installed, run `pip install --upgrade cid-cmd` in a scratch virtual
+    environment.
+  - If it is installed, compare `cid-cmd --help` (the first line shows the version) with the
+    latest on PyPI
+    (`curl -fsSL https://pypi.org/pypi/cid-cmd/json | jq -r .info.version`). If it is older,
+    upgrade it in a scratch virtual environment, and don't change the user's system Python.
+  - Installing or upgrading is a local tooling step. It makes no change to the user's AWS
+    account, so it is compatible with read-only requests such as "just check, don't change
+    anything". Mention it in your answer.
+
+  The behavior notes in this skill were last checked on cid-cmd 4.4.21. If a newer release
+  behaves differently, trust its `--help` and output over this text.
 - **Locate `cid-cmd`; do NOT assume it is on PATH.** The console script may land in a
   directory that is not on `PATH`, most notably on macOS **python.org framework builds**,
   where it goes to `/Library/Frameworks/Python.framework/Versions/<X.Y>/bin/cid-cmd`. Before
@@ -127,7 +143,7 @@ it for you.
   status, list stacks, diagnostics) when the user is only inspecting. Those **MAY** run
   without confirmation.
 - You **MUST** warn that `update --recursive` and `--on-drift override` can **overwrite
-  dashboard and Athena-view customizations**.
+  dashboard and Athena-view customizations** (see [Recursive updates](#recursive-updates)).
 - You **MUST** warn that `cid-cmd delete` and CloudFormation **stack deletion are destructive
   and irreversible**.
 - You **MUST NOT** disable safety protections or delete production stacks without explicit
@@ -160,12 +176,21 @@ result. In short:
 
 Resolve the user's phrase to a canonical `--dashboard-id` using
 [dashboard-catalog.md](references/dashboard-catalog.md). It has the full id list, the
-friendly-name aliases, and which dashboards need the Data Collection pipeline. Note that
-`cudos` (friendly) resolves to `cudos-v5`, while the exact id `cudos` is the deprecated v4.
+friendly-name aliases, and which dashboards need the Data Collection pipeline.
+
+**"CUDOS" always means `cudos-v5`.** Any mention of CUDOS, in any case and with or without
+backticks (including the bare id `cudos`), resolves to `cudos-v5` for every operation: status,
+deploy, update, delete, content questions, and changelogs. Never pass `--dashboard-id cudos`.
+The id `cudos` is the deprecated CUDOS v4. Mention it only when a v4 dashboard with that id is
+already deployed in the account. Then call it "CUDOS v4 (legacy)" and suggest moving to
+`cudos-v5`.
+
+When the user asks what a dashboard shows, answer from its docs page and its upstream
+definition YAML, following [dashboard-content.md](references/dashboard-content.md). Don't
+answer from memory, and cite the source.
 
 When you name, compare, or recommend dashboards, give each one's canonical id (for example
-`cudos-v5`, `cost_intelligence_dashboard`, `kpi_dashboard`), and whenever CUDOS comes up, say
-that the exact id `cudos` is the deprecated v4.
+`cudos-v5`, `cost_intelligence_dashboard`, `kpi_dashboard`).
 
 ## Read-only operations
 
@@ -176,6 +201,9 @@ All read-only; no confirmation required.
 - **Check a dashboard for updates:**
   `cid-cmd --profile "<p>" --region_name "<r>" -y status --dashboard-id "<id>" < /dev/null`
   (the `< /dev/null` is REQUIRED; without it the command can hang on an interactive menu).
+  When an update is available, also report what the changelog says it needs (`--recursive`,
+  `--force`, a minimum cid-cmd or Data Collection version). Fetching the changelog is
+  read-only; see [update-changelog-check.md](references/update-changelog-check.md).
 - **List deployed dashboards:** cid-cmd has no non-interactive list subcommand, so use
   QuickSight directly:
   `aws quicksight list-dashboards --aws-account-id "<acct>" [--profile "<p>" --region "<r>"]`
@@ -183,16 +211,16 @@ All read-only; no confirmation required.
 - **CloudFormation stack status:** `aws cloudformation describe-stacks --stack-name "<name>"`
 - **List CloudFormation stacks:** `aws cloudformation list-stacks` (filter by a `cid` name
   prefix to surface CID stacks).
-- **Is a CID stack up to date:** compare its deployed template version with the pin in
-  [cloudformation-templates.md](references/cloudformation-templates.md) and report it against
-  that pin (for example "v3.14.2, behind the pinned v3.14.8"). Mention a newer upstream
-  release only as newer than the pin and not verified.
+- **Is a CID stack up to date:** compare the version in its deployed template's `Description`
+  with the version in the latest public template's `Description`, and report it (for example
+  "v3.14.8, latest is v3.14.11"). See "Is a deployed stack up to date?" in
+  [cloudformation-templates.md](references/cloudformation-templates.md).
 - **Not read-only:** `aws cloudformation detect-stack-drift` and `detect-stack-set-drift`
   start a drift operation and leave a drift record. Do not run them for "just check"
   requests.
 - **Diagnostics:** confirm `cid-cmd` is installed (`cid-cmd --help`; the first line shows the
-  version, e.g. `... CLI 4.4.19`); confirm credentials resolve (`aws sts get-caller-identity`);
-  note the pinned template versions in
+  version, e.g. `... CLI 4.4.21`); confirm credentials resolve (`aws sts get-caller-identity`);
+  read the latest template versions as described in
   [cloudformation-templates.md](references/cloudformation-templates.md); and confirm outbound
   HTTPS to `raw.githubusercontent.com` is reachable.
 
@@ -210,10 +238,17 @@ cid-cmd --profile "<p>" --region_name "<r>" -y deploy --dashboard-id "<id>" \
   --cur-table-name "<cur-table-or-view>"
 ```
 
+For `cudos-v5`, `cost_intelligence_dashboard`, `kpi_dashboard`, and `focus-dashboard`, list
+the available tags, cost categories, and (CUR 2.0) `line_item_iam_principal` first, as
+interactive cid-cmd does. Ask the user to pick the strict minimum, and pass them with
+`--resource-tags` (see "Tags, cost categories, and IAM principal" in
+[deploy-parameters.md](references/deploy-parameters.md)). Unattended, cid-cmd otherwise
+deploys with no tags.
+
 All options, how to discover each value, and deploy-time issues (stale CUR view,
 `--timezone`, `cora` and `focus-dashboard` export requirements) are in
 [deploy-parameters.md](references/deploy-parameters.md). Advanced dashboards show no data
-until the Data Collection pipeline has run (see Workflows).
+until the Data Collection pipeline has run (see [Infrastructure via CloudFormation](#infrastructure-via-cloudformation)).
 
 ## Update a dashboard (`cid-cmd update`)
 
@@ -230,6 +265,51 @@ date, with or without `--force`, so skip up-to-date dashboards unless the user a
 rebuild or a CUR 2.0 migration. `--recursive` also updates datasets and Athena views and
 **can overwrite customizations**.
 
+**Check the changelog before every update.** You **MUST** read the dashboard's upstream
+changelog for every version between the deployed and the latest one, following
+[update-changelog-check.md](references/update-changelog-check.md), before you propose the
+command. cid-cmd checks only the major version, so the changelog is the only place that says
+whether a minor release needs `--recursive` or `--force`, a newer cid-cmd, or a newer Data
+Collection. A major version bump makes cid-cmd go recursive by itself under `-y`. Treat it as a
+recursive update. Cite the changelog version behind each flag. If the changelog can't be
+fetched, say so and let the user choose.
+
+### Recursive updates
+
+This section is the single source for recursive updates. It covers changelog-driven ones, major
+version bumps, CUR 2.0 migrations, and forced rebuilds.
+
+An agent shell has no terminal. Without one, cid-cmd keeps the existing Athena views, even with
+`--recursive`, unless you pass `--on-drift override`. A recursive update against old views fails
+on missing columns. It can also leave the dashboard **partly broken**: migrating a dataset to
+the new data preparation experience deletes the dataset, and then recreating it fails.
+
+1. **Warn and confirm, in one message.** Say that the views and datasets of `<ids>` will be
+   **replaced with the new versions**, that customizations to them are lost, and that views
+   shared with other dashboards (for example `summary_view` for `cudos-v5`,
+   `cost_intelligence_dashboard`, and `kpi_dashboard`) change for those dashboards too. Say it
+   is real and billable, and that it can take more than 15 minutes. In the same message, ask
+   for the timezone (see `--timezone` in [deploy-parameters.md](references/deploy-parameters.md))
+   and, for CUDOS v5, Cost Intelligence, KPI, and FOCUS, confirm the **tag selection**. Show the
+   current tags and ask whether to keep or change them (see "Tags, cost categories, and IAM
+   principal" in [deploy-parameters.md](references/deploy-parameters.md)). Without an explicit
+   `--resource-tags`, an unattended run can drop every tag column.
+2. **After confirmation, run it unattended, in the background:**
+
+   ```bash
+   cid-cmd --profile "<p>" --region_name "<r>" -y update --recursive --on-drift override \
+     --dashboard-id "<id>" --athena-database "<db>" --athena-workgroup "<workgroup>" \
+     --timezone "<tz>" [--resource-tags "<names>"] [--force] [other chain params]
+   ```
+
+   Don't ask the user to run it in a terminal themselves. Releases before cid-cmd 4.4.20
+   ignore `--on-drift override` without a terminal, so use the latest release (see
+   Prerequisites). If you can't, stop.
+3. **If the user declines,** don't run the recursive update. A plain update is possible only for
+   a minor or patch bump. Say that the dashboard may break or show stale data until a recursive
+   update is done. On a major bump, a plain update goes recursive anyway, so report that the
+   dashboard stays on its current version.
+
 Without `--recursive`, cid-cmd reuses the dashboard's existing datasets and views. The only
 view it writes is its own parameter store, `cid_parameters`, in the `--athena-database` you
 pass. Pass the database the user names; if they name none, use the one the dashboard's
@@ -240,21 +320,16 @@ and ask. Options and the parameter chain are in
 
 ## Migrate to CUR 2.0
 
-Mutating; confirm first. This is exactly:
+A recursive update of all dashboards. Follow [Recursive updates](#recursive-updates), with
+this command:
 
 ```bash
-cid-cmd --profile "<p>" --region_name "<r>" -y update --force --recursive
+cid-cmd --profile "<p>" --region_name "<r>" -y update --force --recursive --on-drift override --timezone "<tz>"
 ```
 
-It repoints existing dashboards at the CUR 2.0 table. It **WILL override Athena view
-customizations**. A CUR 2.0 data export must already exist and be delivering data; this
-command does not create the export. Set up the export first via the Data Exports stack.
-Recursive updates can prompt for `--timezone` and can take more than 15 minutes (see
-[deploy-parameters.md](references/deploy-parameters.md)). As of cid-cmd 4.4.19, existing
-Athena views are replaced only when stdin is a terminal; with no terminal (or stdin closed)
-they are kept. Afterwards, check that the dashboard datasets and views now read CUR 2.0. If
-the views were kept because there was no terminal, the user must run `update --recursive`
-in a terminal to review and replace them.
+It repoints existing dashboards at the CUR 2.0 table. A CUR 2.0 data export must already exist
+and be delivering data, because this command doesn't create it (see the Data Exports stack).
+Afterwards, check that the dashboard datasets and views now read CUR 2.0.
 
 ## Delete a dashboard (`cid-cmd delete`)
 
@@ -267,10 +342,10 @@ cid-cmd --profile "<p>" --region_name "<r>" -y delete --dashboard-id "<id>" [--a
 Deletes the dashboard and its unshared dependencies. Dashboards deployed via CloudFormation
 are not cid-cmd dashboards; delete those by deleting the stack instead.
 
-## Sharing is not automatable as of cid-cmd 4.4.19
+## Sharing is not automatable
 
-Automated sharing with specific users, groups, or folders does **not** work in cid-cmd
-4.4.19 (the `share` code path is unchanged since 4.4.17). The `share` subcommand parses
+Automated sharing with specific users, groups, or folders does **not** work (checked in
+cid-cmd 4.4.21; the `share` code path is unchanged since 4.4.17). The `share` subcommand parses
 `--share-method`, `--folder-method`, `--folder-id`, `--folder-name`, `--quicksight-user`, and
 `--quicksight-group`, but its body ignores them (it calls the share routine with only the
 dashboard id, unlike deploy/update/delete, which forward their options). Run
@@ -282,12 +357,12 @@ non-interactively, it then fails on a prompt it cannot satisfy
   `cid-cmd share` **interactively** in a real terminal. Share only with the principals the
   user names (see Security Considerations).
 
-For reference, the `share` arguments as of cid-cmd 4.4.19 are
+For reference, the `share` arguments are
 `--dashboard-id <id> --share-method <account|user|folder>`; `user` requires
 `--quicksight-user`; `folder` requires `--folder-method <new|existing>` then `--folder-name`
 (new) or `--folder-id` (existing); `account` takes none of those.
 
-Account-wide sharing is the one exception, as of cid-cmd 4.4.19 (added in 4.4.18):
+Account-wide sharing is the one exception (added in cid-cmd 4.4.18):
 
 - `update --dashboard-id "<id>" --share-with-account yes` shares the dashboard with
   **everyone in the account**, and `--share-with-account no` revokes that. Omitting the flag
@@ -316,11 +391,11 @@ Full how-tos with real flags and safety framing are in
   `create-cur-proxy` (stand up or translate a CUR Athena table or view without the Data
   Exports stack); `map` and `csv2view` (build the account map and CSV-backed views that
   `deploy --account-map-source csv --account-map-file <csv>` consumes).
-- **Unattended defaults (as of cid-cmd 4.4.19):** with `-y` and no terminal, a free-text
+- **Unattended defaults:** with `-y` and no terminal, a free-text
   prompt that has a default now takes it instead of aborting. For
   `export --dashboard-export-method template` that default makes `--reader-account` `*`
   (every AWS account), so always pass `--reader-account` explicitly.
-- **Quick Agents (new in cid-cmd 4.4.19):** `list-agents` is read-only; `create-agent` and
+- **Quick Agents:** `list-agents` is read-only; `create-agent` and
   `update-agent` are mutating (they build an Amazon Quick Space and Agent over dashboards
   that are already deployed); `delete-agent` is destructive. Confirm all but `list-agents`.
 - **Destructive:**
@@ -332,68 +407,40 @@ Full how-tos with real flags and safety framing are in
 
 ## Infrastructure via CloudFormation
 
-Use `aws cloudformation create-stack` / `update-stack` with the template URL and
-`--capabilities CAPABILITY_NAMED_IAM` (`aws cloudformation deploy` accepts only a local
-template file). Exact URLs, pinned versions, per-stack parameters, default stack names, a
-validated `jq`-built parameter example, and region constraints are in
-[cloudformation-templates.md](references/cloudformation-templates.md). Mutating; confirm
-first.
+Mutating; confirm first. Use `aws cloudformation create-stack` / `update-stack` with the
+template URL and `--capabilities CAPABILITY_NAMED_IAM` (`aws cloudformation deploy` accepts
+only a local template file). Before every create or update, run the read-only template check
+in [cloudformation-templates.md](references/cloudformation-templates.md). It covers the latest
+template URLs, the version and parameter check, IAM roles, regions, and the per-stack
+parameters and gotchas. Take parameter names from the template itself.
 
-Stacks you can drive:
+| Stack | Account | Feeds |
+|---|---|---|
+| Data Exports (CUR 2.0 / FOCUS / Cost Optimization Hub) | Destination (data collection) account, plus each source account | Foundational dashboards, `focus-dashboard`, `cora`. One per account: check for an existing `*DataExports*` stack first. |
+| Legacy CUR 1.0 aggregation | Destination account | Old CUR 1.0 setups. Prefer Data Exports. |
+| Data Collection read permissions | Organizations **management** account | Cross-account read roles for Data Collection |
+| Data Collection | Dedicated **data collection** account, in a supported region | Advanced dashboards. Modules: [data-collection-modules.md](references/data-collection-modules.md). |
+| CFN dashboard deploy (`cid-cfn.yml`) | Dashboard account | Alternative to `cid-cmd deploy`, limited to CUDOS v5, Cost Intelligence, KPI, TAO, and Compute Optimizer |
 
-- **Data Exports** (CUR 2.0 / FOCUS / Cost Optimization Hub), in the destination (data
-  collection) account. Params: `DestinationAccountId`, `ManageCUR2`, `ManageFOCUS`,
-  `ManageCOH` (`yes|no`), optional `SourceAccountIds`. Only one per account; check for an
-  existing `*DataExports*` stack first.
-- **Legacy CUR 1.0 aggregation.** Prefer Data Exports for new setups. Params:
-  `DestinationAccountId`, optional `SourceAccountIds`.
-- **Data Collection Step 1, read-permissions stack**, in the Organizations **MANAGEMENT**
-  account. Params: `DataCollectionAccountID`, `OrganizationalUnitIds`, and one
-  `IncludeXModule=yes` per module that needs a cross-account role (passing a no-role module
-  here is an error).
-- **Data Collection Step 2, the pipeline**, in a dedicated **DATA COLLECTION** account.
-  Params: `ManagementAccountID`, optional `RegionsInScope`, and one `IncludeXModule=yes` per
-  enabled module. Must be in one of the **18 supported regions**. Pricing has no separate
-  toggle. Module-to-parameter mapping:
-  [data-collection-modules.md](references/data-collection-modules.md).
-- **CFN dashboard deploy (`cid-cfn.yml`)**, an alternative to `cid-cmd deploy` limited to 5
-  dashboards (CUDOS v5, Cost Intelligence, KPI, TAO, Compute Optimizer). Requires the
-  QuickSight prerequisites.
+Order:
 
-Check and manage stacks:
+- **Foundational dashboards** (CUDOS v5, Cost Intelligence, KPI): make sure a CUR 2.0 export
+  exists (Data Exports stack, or reuse one), then `cid-cmd deploy`.
+- **Advanced dashboards** (TAO, Compute Optimizer, Graviton, Health Events, and others):
+  deploy the read-permissions stack, then the Data Collection stack with the modules the
+  dashboard needs. Wait until the pipeline has collected data at least once, then
+  `cid-cmd deploy`.
 
-- Status: `aws cloudformation describe-stacks --stack-name "<name>"` (pull recent `*_FAILED`
-  stack events with `describe-stack-events` to diagnose a failure).
-- List: `aws cloudformation list-stacks` (filter by a `cid` prefix).
-- Delete: `aws cloudformation delete-stack --stack-name "<name>"`. **Destructive**; confirm
-  first.
+`cid-cmd deploy` is the default way to deploy dashboards. It covers the full catalog. Use
+`cid-cfn.yml` only when the user wants the dashboards tracked in one stack.
 
-## Workflows
+Manage stacks with `describe-stacks` (status), `describe-stack-events` (look for `*_FAILED`),
+and `list-stacks` (filter on `cid`). `delete-stack` is **destructive**: confirm first.
 
-### Foundational dashboards (CUDOS v5, Cost Intelligence, KPI; CUR only)
-
-1. Ensure a CUR 2.0 export exists: deploy the Data Exports stack, or reuse an existing one.
-2. `cid-cmd ... deploy --dashboard-id <id>` with the parameter chain above.
-
-### Advanced dashboards (TAO, Compute Optimizer, Graviton, Health Events, and others)
-
-Order matters:
-
-1. Deploy the **Data Collection read-permissions** stack in the Organizations **Management**
-   account (fans a read role across OUs via service-managed StackSets; needs Organizations
-   trusted access).
-2. Deploy the **Data Collection** pipeline stack in a dedicated **Data Collection** account,
-   with the modules the dashboard needs enabled (see
-   [data-collection-modules.md](references/data-collection-modules.md)).
-3. After the pipeline has collected data at least once, deploy the dashboard
-   (`cid-cmd ... deploy --dashboard-id <id>`).
-
-### Two ways to deploy a dashboard
-
-- **`cid-cmd deploy`**: the full catalog, run unattended with explicit flags. This is the
-  default.
-- **CFN path (`cid-cfn.yml`)**: infrastructure as code in one tracked stack, but only 5
-  dashboards.
+Teardown order (from the CID docs): delete the Data Collection stack only after emptying its
+Destination S3 bucket, or the deletion fails. Historical CUR data stays in the
+`<resource-prefix>-<payer-account-id>-shared` bucket, so empty it manually if the user wants it
+gone. Also delete the Data Exports Source stack in the payer or source account.
 
 ## Gotchas and troubleshooting
 
