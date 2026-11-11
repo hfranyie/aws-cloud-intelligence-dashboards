@@ -1,6 +1,6 @@
 # CloudFormation templates, versions, URLs, and regions
 
-Template bucket, pinned versions, exact template URLs, per-stack parameter sets, and region
+Template bucket, latest template URLs and how to verify them, per-stack parameter sets, and region
 constraints for the CID CloudFormation stacks. Every stack here is mutating: get explicit
 confirmation first (see "Safety model" in SKILL.md).
 
@@ -13,8 +13,7 @@ Considerations" in SKILL.md).
 ## Contents
 
 - [Live-validated behaviors and gotchas](#live-validated-behaviors-and-gotchas)
-- [Template bucket and pinned versions](#template-bucket-and-pinned-versions)
-- [Exact template URLs](#exact-template-urls)
+- [Template bucket, latest URLs, and verification](#template-bucket-latest-urls-and-verification)
 - [Per-stack parameters and default stack names](#per-stack-parameters-and-default-stack-names)
   - [Data Exports: destination vs. source accounts](#data-exports-destination-vs-source-accounts)
   - [Legacy CUR 1.0 aggregation](#legacy-cur-10-aggregation)
@@ -27,7 +26,7 @@ Considerations" in SKILL.md).
 
 Verified by actually deploying against a real account:
 
-- **CloudFormation accepts the pinned template URL + `CAPABILITY_NAMED_IAM`** — the Data
+- **CloudFormation accepts the public template URL + `CAPABILITY_NAMED_IAM`** — the Data
   Exports stack create was accepted and began provisioning (mechanics confirmed).
 - **One data-exports stack per account.** The Data Exports template publishes a **named
   CloudFormation Export** (`cid-DataExports-Database`). An account can hold only one stack
@@ -77,9 +76,9 @@ Verified by actually deploying against a real account:
   statement and no `S3BucketOwner` direct-delivery support. A **v0.12.0 source** export then
   fails validation against that old destination bucket. **Updating `SourceAccountIds` alone
   does not fix it** — with `--use-previous-template` the stack keeps the old template, so the
-  PutObject grant is never added. **The fix: update the destination stack to the v0.12.0
-  template** (`--template-url <...0.12.0...data-exports-aggregation.yaml>`, NOT
-  `--use-previous-template`). Verified live: a v0.9.0 → v0.12.0 destination `update-stack`
+  PutObject grant is never added. **The fix: update the destination stack to the latest
+  template** (`--template-url https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-exports-aggregation.yaml`,
+  NOT `--use-previous-template`). Verified live: a v0.9.0 → v0.12.0 destination `update-stack`
   reached `UPDATE_COMPLETE` in place, the bucket policy gained the
   `EnableAWSDataExportsToWriteToS3` `s3:PutObject` grant, and the previously-failing source
   export stack then reached `CREATE_COMPLETE`. **Before deploying a source against an existing
@@ -87,53 +86,87 @@ Verified by actually deploying against a real account:
   its deployed template `Description` (`aws cloudformation get-template ... | grep Description`
   shows e.g. `... Aggregation v0.9.0`).
 - **Correct ordering for a multi-account source→destination export (verified end-to-end):**
-  1. Destination account: ensure the destination stack is on the **v0.12.0 template** and its
+  1. Destination account: ensure the destination stack is on the **latest template** (v0.12.0
+     or later; compare its `Description` version with the latest, see below) and its
      `SourceAccountIds` includes the source account id (update with the template URL if it is
      older). Reach `UPDATE_COMPLETE`; confirm the bucket policy has the `s3:PutObject` grant.
-  2. Source account: deploy the v0.12.0 template with `DestinationAccountId=<dest>`,
+  2. Source account: deploy the same latest template with `DestinationAccountId=<dest>`,
      `SourceAccountIds=<source>`, matching `ResourcePrefix`, `ManageCUR2=yes`. The export
      (`LocalCUR2viaCFN`) + local `SourceS3` reach `CREATE_COMPLETE`.
 
-## Template bucket and pinned versions
+## Template bucket, latest URLs, and verification
 
-- Bucket: `aws-managed-cost-intelligence-dashboards`
-- Base URL: `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com`
+Deploy the **latest public templates**, the same URLs the CID documentation links to. Don't
+use version-pinned paths. Templates change between releases (new `IncludeXModule` parameters,
+new regions, changed grants), so **read and verify the template itself before every create or
+update**. Treat the parameter lists in this file as a guide.
 
-Pinned versions (bump deliberately; floating on "latest" is intentionally avoided):
+### Latest template URLs
 
-| Family | Version |
-|---|---|
-| data-collection | `v3.14.8` |
-| data-exports | `0.12.0` |
-| cur-aggregation (legacy CUR 1.0) | `0.2.0` |
-| cid-cfn.yml / cid-cmd | `4.4.19` |
-
-The `cid-cfn.yml` pin tracks the cid-cmd release: the 4.4.19 template bundles the cid-cmd
-4.4.19 Lambda layer, and its parameters are unchanged from 4.4.17. The `data-collection`
-and `data-exports` pins are independent of cid-cmd and stay on the versions the live-verified
-guidance below was tested on. As of the cid-cmd 4.4.19 update, the bucket also has newer `data-exports`
-`0.13.0` (adds `AcceptReplicationFromSources` and changes the replication grants) and
-`data-collection` `v3.14.11` (adds `IncludeRDSModule`). Do not switch to them without
-re-verifying the guidance in this file.
-
-## Exact template URLs
-
-Built from the version constants above:
-
-- Data Collection read-permissions:
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-collection/v3.14.8/deploy-data-read-permissions.yaml`
-- Data Collection stack:
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-collection/v3.14.8/deploy-data-collection.yaml`
+- Data Collection read-permissions (management account):
+  `https://aws-managed-cost-intelligence-dashboards-us-east-1.s3.amazonaws.com/cfn/data-collection/deploy-data-read-permissions.yaml`
+- Data Collection stack (default stack name in the docs: `CidDataCollectionStack`):
+  `https://aws-managed-cost-intelligence-dashboards-us-east-1.s3.amazonaws.com/cfn/data-collection/deploy-data-collection.yaml`
 - Data Collection management-account role (referenced by catalog):
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-collection/v3.14.8/deploy-in-management-account.yaml`
+  `https://aws-managed-cost-intelligence-dashboards-us-east-1.s3.amazonaws.com/cfn/data-collection/deploy-in-management-account.yaml`
 - Data Collection linked-account role (referenced by catalog):
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-collection/v3.14.8/deploy-in-linked-account.yaml`
+  `https://aws-managed-cost-intelligence-dashboards-us-east-1.s3.amazonaws.com/cfn/data-collection/deploy-in-linked-account.yaml`
 - Data Exports aggregation (CUR 2.0 / FOCUS / Cost Optimization Hub):
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-exports/0.12.0/data-exports-aggregation.yaml`
+  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-exports-aggregation.yaml`
 - Legacy CUR 1.0 aggregation:
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-exports/0.2.0/cur-aggregation.yaml`
+  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/cur-aggregation.yaml`
 - CFN-native dashboard deploy:
-  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/4.4.19/cid-cfn.yml`
+  `https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/cid-cfn.yml`
+
+Use the URLs exactly as listed. The Data Collection URLs use the `-us-east-1` bucket, as the
+CID documentation does. The Data Exports, CUR, and `cid-cfn.yml` templates exist only in the
+global bucket; the `-us-east-1` bucket returns 403 for them.
+
+### Verify the template before deploying (read-only)
+
+1. **Read its version.** Every template states its version in `Description`:
+
+   ```bash
+   aws cloudformation get-template-summary --template-url "<url>"      --query "{Description: Description, Capabilities: Capabilities, Parameters: Parameters[].ParameterKey}"      [--profile "<p>"] [--region "<r>"]
+   ```
+
+   (`curl -fsSL "<url>" | grep -m1 '^Description'` works without AWS credentials.) For
+   example: `CID Data Collection Stack v3.14.11`, `AWS Billing Data Export Aggregation
+   v0.13.0`, `Deployment of Cloud Intelligence Dashboards v4.4.21`.
+2. **Check every parameter you plan to pass against the template's `Parameters`.** If a
+   parameter you plan to pass is missing, stop and tell the user. Don't pass it. If the
+   template has parameters this skill doesn't describe (for example a new `IncludeXModule`),
+   read their `Description`, `AllowedValues`, and `Default` from the template (`curl` it) and
+   tell the user about any that matter to their request.
+3. **Check the capabilities and IAM roles** the summary reports before acknowledging
+   `CAPABILITY_NAMED_IAM` (see Security Considerations in SKILL.md).
+4. **For Data Collection, check the region** against the template's own `Mappings.RegionMap`.
+   The [list below](#data-collection-supported-regions-18) is a snapshot.
+5. **Tell the user which version you are about to deploy**, and, for an update, which version
+   is deployed now.
+
+### Is a deployed stack up to date?
+
+Compare the version in the deployed template's `Description`
+(`aws cloudformation get-template --stack-name "<name>" --query TemplateBody --output text |
+grep -m1 Description`) with the latest template's `Description` from step 1. Report "up to
+date", or "vX, latest is vY". Version requirements in dashboard changelogs (for example
+"requires Data Collection 3.14.4+") are minimums, not "latest". A newer deployed version
+satisfies them.
+
+### Versions this guidance was last checked against
+
+| Family | Latest when last checked |
+|---|---|
+| data-collection | `v3.14.11` |
+| data-exports | `0.13.0` (the live-tested deploys above ran on `0.12.0`; the statement ids, conditions, and export name they rely on were rechecked in `0.13.0`) |
+| cur-aggregation (legacy CUR 1.0) | `0.2.0` |
+| cid-cfn.yml | `4.4.21` |
+
+This table records what the guidance was checked against. It is not a pin. A newer version in
+the bucket is normal: verify it as above and deploy it. For what changed in data-exports
+`0.13.0`, see `AcceptReplicationFromSources` under
+[Data Exports — full parameter surface](#data-exports--full-parameter-surface-advanced).
 
 ## Per-stack parameters and default stack names
 
@@ -155,7 +188,7 @@ PARAMS="$(jq -n --arg dest "$DEST_ACCOUNT_ID" '[
 
 STACK_ID="$(aws cloudformation create-stack \
   --stack-name "$STACK_NAME" \
-  --template-url "https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-exports/0.12.0/data-exports-aggregation.yaml" \
+  --template-url "https://aws-managed-cost-intelligence-dashboards.s3.amazonaws.com/cfn/data-exports-aggregation.yaml" \
   --parameters "$PARAMS" \
   --capabilities CAPABILITY_NAMED_IAM \
   --on-failure DELETE \
@@ -175,6 +208,7 @@ Verified against the template.
 **The same `data-exports-aggregation.yaml` template is deployed in BOTH the destination
 account and each source account, tied together by a matching `ResourcePrefix`.** The template
 figures out which role it is playing from its own conditions (read verbatim from the 0.12.0
+template, and unchanged in 0.13.0
 template):
 
 - `IsDestinationAccount` = true when `DestinationAccountId == AWS::AccountId`. The destination
@@ -201,7 +235,9 @@ Two real topologies:
   destination stack — see the one-stack-per-account export conflict in "Live-validated
   behaviors and gotchas" above; add source accounts by deploying in THOSE accounts instead.
 
-- Default stack name: `cid-data-exports`
+- Example stack names (from the CID docs): `CID-DataExports-Destination` in the destination
+  account and `CID-DataExports-Source` in each source account. Use the same name only once per
+  account.
 - Template: `data-exports-aggregation.yaml`
 - Parameters:
   - `DestinationAccountId` — 12-digit account where exports land (required)
@@ -246,6 +282,14 @@ so you cannot pass them — only the parameters below exist.)
   version (retains the local S3 bucket); set `no` for brand-new deployments.
 - `SecondaryDestinationBucket` (default empty) — optional bucket name to replicate export data
   to a second destination. Keep empty if unsure.
+- `AcceptReplicationFromSources` = `yes` | `no` (default `no`; added in `0.13.0`) — destination
+  account only. Set `yes` only if a source stack uses `SecondaryDestinationBucket` and
+  replicates into this bucket. Not needed with `LegacyLocalBucket=yes`. In `0.13.0` the
+  destination bucket policy's replication statements (`AllowReplicationWrite` /
+  `AllowReplicationRead`) are added only when `LegacyLocalBucket=yes` **or**
+  `AcceptReplicationFromSources=yes`. The direct-delivery grant
+  (`EnableAWSDataExportsToWriteToS3`) is always present, so normal sources that write directly
+  don't need this parameter.
 
 **(c) Write-blocker scheduling (advanced / rarely needed) — pause export writes during
 QuickSight refresh:**
@@ -359,7 +403,7 @@ An alternative to `cid-cmd deploy`.
   - `DeployKPIDashboard` = `yes` | `no`
   - `DeployTAODashboard` = `yes` | `no`
   - `DeployComputeOptimizerDashboard` = `yes` | `no`
-  - `ShareDashboard` = `yes` | `no` (shares with everyone in the account; as of cid-cmd 4.4.19 this
+  - `ShareDashboard` = `yes` | `no` (shares with everyone in the account; this
     stack-wide setting applies on stack create only, not on update)
   - `OptimizationDataCollectionBucketPath` — `s3://` path from your Data Collection stack;
     required when `DeployTAODashboard=yes` or `DeployComputeOptimizerDashboard=yes`

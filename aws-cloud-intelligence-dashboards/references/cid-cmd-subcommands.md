@@ -2,7 +2,7 @@
 
 The `cid-cmd` subcommands that the lifecycle sections of SKILL.md (deploy, update, delete,
 status, migrate, share) do not cover. One concise how-to each. Flags match upstream
-`cid/cli.py` as of cid-cmd 4.4.19; do not invent flags.
+`cid/cli.py` (last checked on cid-cmd 4.4.21); do not invent flags.
 
 ## Contents
 
@@ -10,7 +10,7 @@ status, migrate, share) do not cover. One concise how-to each. Flags match upstr
 - [Read-only / low-risk](#read-only--low-risk): `open`, `export`
 - [Mutating — confirm first](#mutating--confirm-first): `refresh`, `map`, `csv2view`,
   `init-qs`, `create-cur-table`, `create-cur-proxy`, `cleanup`
-- [Quick Agents (new in cid-cmd 4.4.19)](#quick-agents-new-in-cid-cmd-4419): `list-agents`,
+- [Quick Agents](#quick-agents): `list-agents`,
   `create-agent`, `update-agent`, `delete-agent`
 - [Extremely destructive — refuse by default](#extremely-destructive--refuse-by-default):
   `teardown`
@@ -37,7 +37,7 @@ status, migrate, share) do not cover. One concise how-to each. Flags match upstr
   Considerations" in SKILL.md).
 - **Close stdin on anything that might open the interactive picker:** append `< /dev/null`
   (as with `status`) so a subcommand cannot block on a menu in a TTY shell.
-- **Unattended defaults (as of cid-cmd 4.4.19, added in 4.4.18):** with `-y` and no
+- **Unattended defaults (added in cid-cmd 4.4.18):** with `-y` and no
   terminal, a free-text prompt that has a default takes that default (logged as
   `WARNING - Parameter <X> is not set. Using default: <value>`) instead of aborting. Selection
   prompts without a default still abort with `Please set parameter <X>`. Pass every value
@@ -88,7 +88,7 @@ from the URL) or `--analysis-name`.
   only). `--dashboard-export-method template` **creates a QuickSight Template** in the
   account — that is a real mutating action, so **confirm before using `template`**.
 - `--reader-account` grants read access to another account id (or `*`) — treat as sharing;
-  confirm. **As of cid-cmd 4.4.19, with `-y` and no terminal, an omitted
+  confirm. **With `-y` and no terminal, an omitted
   `--reader-account` falls back to its default `*`** and shares the template with every AWS
   account, so always pass `--reader-account <account-id>` explicitly with the `template`
   method.
@@ -155,7 +155,7 @@ has no QuickSight set up yet.
 - `--account-name <name>` — a QuickSight account name that must be unique across all AWS.
 - `--notification-email <email>` — email for QuickSight notifications. Ask the user for this
   address and confirm it belongs to authorized personnel; never guess or invent one.
-- As of cid-cmd 4.4.19, with `-y` and no terminal an omitted `--account-name` falls back to
+- With `-y` and no terminal, an omitted `--account-name` falls back to
   the account's AWS Organizations name. The name cannot be changed later, so always pass the
   name the user chose.
 
@@ -185,7 +185,7 @@ cid-cmd ... create-cur-proxy \
 
 Creates an Athena proxy **view** that transforms CUR1→CUR2 or CUR2→CUR1, so a dashboard built
 for one CUR version can read the other. **Mutating** (creates an Athena view). This is a
-**lighter alternative to a full CUR 2.0 migration** (`update --force --recursive`): it does
+**lighter alternative to a full CUR 2.0 migration** (`update --force --recursive --on-drift override`): it does
 not rebuild datasets/views, it just presents the other shape. `--cur-version` is the *target*
 version; `--fields` adds extra CUR fields; the `--cur-table-name` / `--cur-database` locate
 the existing CUR and `--athena-database` is where the proxy view is created.
@@ -202,9 +202,9 @@ wants to remove one dashboard's resources.
 
 ---
 
-## Quick Agents (new in cid-cmd 4.4.19)
+## Quick Agents
 
-cid-cmd 4.4.19 adds four commands that publish an Amazon Quick Agent, and the Space it reads,
+cid-cmd 4.4.19 added four commands that publish an Amazon Quick Agent, and the Space it reads,
 on top of CID dashboards that are **already deployed**. They never deploy dashboards or the
 data layer (CUR, Data Exports, Data Collection). Agent definitions come from a second
 catalog that cid-cmd fetches from `raw.githubusercontent.com`, so the same reachability

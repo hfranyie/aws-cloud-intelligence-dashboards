@@ -2,9 +2,11 @@
 
 Module key -> exact CloudFormation parameter name (`IncludeXModule`), what each collects,
 which dashboards it powers, and which cross-account read role it needs. Values match the
-pinned Data Collection templates (`v3.14.8`).
+Data Collection templates `v3.14.11`. Newer templates can add modules, so check the latest
+template's `Include*Module` parameters before deploying (see
+[cloudformation-templates.md](cloudformation-templates.md)).
 
-**Use the 24-module list below** wherever an abbreviated module table disagrees. Some
+**Use the 25-module list below** wherever an abbreviated module table disagrees. Some
 abbreviated tables collapse `identity_center` and `kiro_user_activity` into a catch-all and
 omit `rightsizing`.
 
@@ -18,7 +20,7 @@ omit `rightsizing`.
 - The module key (left column) is the short name a user says; the CFN parameter (second
   column) is the literal CloudFormation `ParameterKey`.
 
-## Module table (24)
+## Module table (25)
 
 | Module key | CFN parameter | Collects | Powers dashboards | Cross-account role | Extra params |
 |---|---|---|---|---|---|
@@ -29,6 +31,7 @@ omit `rightsizing`.
 | `support_cases` | `IncludeSupportCasesModule` | AWS Support case history | `support-cases-radar` | linked | |
 | `ecs_chargeback` | `IncludeECSChargebackModule` | Amazon ECS task/cluster cost allocation data | — | linked | |
 | `inventory` | `IncludeInventoryCollectorModule` | Resource inventory (AMIs, EBS volumes/snapshots, EC2, RDS, ElastiCache, OpenSearch, Lambda, EKS) — pulls in pricing data automatically | `graviton-savings`, `extended-support-cost-projection` | linked | |
+| `rds` | `IncludeRDSModule` | RDS operational details (for example pending maintenance). Requires the `inventory` and `reference` modules (enforced at deploy time) | `droid` | linked | |
 | `rds_utilization` | `IncludeRDSUtilizationModule` | RDS CloudWatch utilization metrics for chargeback | — | linked | |
 | `org_data` | `IncludeOrgDataModule` | AWS Organizations account/OU/tag metadata | — | none | |
 | `budgets` | `IncludeBudgetsModule` | AWS Budgets | `aws-budgets` | linked | |
